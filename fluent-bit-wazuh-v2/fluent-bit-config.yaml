@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-config
+  namespace: wazuh-log-collector
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush             1
+        Log_Level         info
+        Daemon            off
+        Parsers_File      parsers.conf
+
+    # --- INPUT: Tail all container logs (covers applications, teleport, and k8s static pods) ---
+    [INPUT]
+        Name              tail
+        Tag               kube.*
+        Path              /var/log/containers/*.log
+        Parser            cri
+        Mem_Buf_Limit     50MB
+        Skip_Long_Lines   On
+        Refresh_Interval  5
+
+    # --- INPUT: Systemd journal for node-level services like kubelet and containerd ---
+    [INPUT]
+        Name              systemd
+        Tag               host.*
+        Systemd_Filter    _SYSTEMD_UNIT=kubelet.service
+        Systemd_Filter    _SYSTEMD_UNIT=containerd.service
+        Read_From_Tail    On
+        Max_Entries       1000
+
+    # --- FILTER: enrich with k8s metadata (pod name, namespace, container) ---
+    [FILTER]
+        Name                   kubernetes
+        Match                  kube.*
+        Kube_URL               https://kubernetes.default.svc:443
+        Kube_CA_File           /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        Kube_Token_File        /var/run/secrets/kubernetes.io/serviceaccount/token
+        Merge_Log              On
+        Merge_Log_Key          log_obj
+        K8S-Logging.Parser     On
+        K8S-Logging.Exclude    Off
+
+    # --- FILTER: Add app_name for Wazuh decoder ---
+    [FILTER]
+        Name          modify
+        Match         *
+        Add           app_name fluent-bit
+
+    # --- OUTPUT: forward to Wazuh Manager via syslog TCP port 514 ---
+    [OUTPUT]
+        Name               syslog
+        Match              *
+        Host               wazuh-workers.wazuh.svc.cluster.local
+        Port               514
+        Mode               tcp
+        Syslog_Format      rfc3164
+        Syslog_Message_key log
+        Syslog_Appname_key app_name
+
+  parsers.conf: |
+    # CRI parser strips the containerd timestamp/stream prefix
+    [PARSER]
+        Name        cri
+        Format      regex
+        Regex       ^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]*) (?<log>.*)$
+        Time_Key    time
+        Time_Format %Y-%m-%dT%H:%M:%S.%L%z

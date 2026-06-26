@@ -1,0 +1,4 @@
+<decoder name="teleport-audit">
+  <program_name>^kube.teleport|^teleport</program_name>
+  <plugin_decoder>JSON_Decoder</plugin_decoder>
+</decoder>

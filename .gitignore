@@ -1,0 +1,8 @@
+# Exclude chat logs, conversations, guides, walkthroughs, plans, and task files
+chat_*
+wazuh_conversation_export.md
+wazuh_siem_guide.md
+wazuh_siem_implementation_guide.md
+wazuh_implementation_plan.md
+walk_through.md
+SIEM_Implementation_Document.md

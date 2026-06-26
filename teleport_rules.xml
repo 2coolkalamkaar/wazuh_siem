@@ -1,0 +1,87 @@
+<group name="teleport,">
+
+  <!-- Successful login -->
+  <rule id="100100" level="3">
+    <decoded_as>fluent-bit</decoded_as>
+    <field name="event">user\.login</field>
+    <field name="success">true</field>
+    <description>Teleport: $(user) logged in via $(method)</description>
+    <group>authentication_success,teleport</group>
+  </rule>
+
+  <!-- Failed login -->
+  <rule id="100101" level="8">
+    <decoded_as>fluent-bit</decoded_as>
+    <field name="event">user\.login</field>
+    <field name="success">false</field>
+    <description>Teleport: Failed login for $(user) - method: $(method)</description>
+    <group>authentication_failures,teleport</group>
+  </rule>
+
+  <!-- SSH session start -->
+  <rule id="100102" level="3">
+    <decoded_as>fluent-bit</decoded_as>
+    <field name="event">session\.start</field>
+    <description>Teleport: SSH session started by $(user) on $(server_hostname)</description>
+    <group>teleport,ssh_session</group>
+  </rule>
+
+  <!-- SSH session end -->
+  <rule id="100103" level="2">
+    <decoded_as>fluent-bit</decoded_as>
+    <field name="event">session\.end</field>
+    <description>Teleport: SSH session ended for $(user)</description>
+    <group>teleport,ssh_session</group>
+  </rule>
+
+  <!-- Kubernetes read access -->
+  <rule id="100104" level="3">
+    <decoded_as>fluent-bit</decoded_as>
+    <field name="event">kube\.request</field>
+    <field name="verb">get|list|watch</field>
+    <description>Teleport: K8s $(verb) on $(resource_kind) by $(user)</description>
+    <group>teleport,kubernetes</group>
+  </rule>
+
+  <!-- Kubernetes write access (higher severity) -->
+  <rule id="100105" level="7">
+    <decoded_as>fluent-bit</decoded_as>
+    <field name="event">kube\.request</field>
+    <field name="verb">create|delete|update|patch</field>
+    <description>Teleport: K8s write — $(verb) $(resource_kind) in $(namespace) by $(user)</description>
+    <group>teleport,kubernetes,write_operation</group>
+  </rule>
+
+  <!-- Role/privilege change (critical) -->
+  <rule id="100106" level="12">
+    <decoded_as>fluent-bit</decoded_as>
+    <field name="event">role\.created|role\.deleted|user\.roles_changed</field>
+    <description>Teleport: Privilege change — $(event) by $(user)</description>
+    <group>teleport,privileged_access</group>
+  </rule>
+
+  <!-- Access request events -->
+  <rule id="100107" level="5">
+    <decoded_as>fluent-bit</decoded_as>
+    <field name="event">access_request\.created|access_request\.reviewed</field>
+    <description>Teleport: Access request — $(event) by $(user)</description>
+    <group>teleport,access_control</group>
+  </rule>
+
+  <!-- Interactive Kubernetes Exec session (high severity) based on session.start -->
+  <rule id="100108" level="10">
+    <if_sid>100102</if_sid>
+    <field name="kubernetes_pod_name">\.+</field>
+    <description>Teleport: K8s Interactive Exec Session by $(user) in Pod $(kubernetes_pod_name)</description>
+    <group>teleport,kubernetes,exec_operation</group>
+  </rule>
+
+  <!-- Kubernetes Exec session (high severity) based on exec event -->
+  <rule id="100109" level="10">
+    <decoded_as>fluent-bit</decoded_as>
+    <field name="event">exec</field>
+    <description>Teleport: K8s Exec by $(user) in Pod $(kubernetes_pod_name)</description>
+    <group>teleport,kubernetes,exec_operation</group>
+  </rule>
+
+</group>

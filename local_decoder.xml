@@ -1,0 +1,33 @@
+<!-- Root decoder to catch all logs sent from Fluent Bit -->
+<decoder name="fluent-bit">
+  <program_name>^fluent-bit</program_name>
+</decoder>
+
+<!-- Decode Teleport JSON and tag it as 'teleport-audit' so it triggers rules -->
+<decoder name="teleport-audit">
+  <parent>fluent-bit</parent>
+  <prematch>"event":"</prematch>
+  <plugin_decoder>JSON_Decoder</plugin_decoder>
+</decoder>
+
+<!-- Generic JSON Decoder for all other apps that log in JSON -->
+<decoder name="fluent-bit-app-json">
+  <parent>fluent-bit</parent>
+  <prematch>^{</prematch>
+  <plugin_decoder>JSON_Decoder</plugin_decoder>
+</decoder>
+
+<!-- Fallback text decoder for apps that log in plain text -->
+<decoder name="fluent-bit-app-text">
+  <parent>fluent-bit</parent>
+  <regex>^(\S+) (\S+) (.*)$</regex>
+  <order>level, module, message</order>
+</decoder>
+
+<!-- Cluster Logs Decoder (Kube-system klog format) -->
+<decoder name="k8s-klog">
+  <parent>fluent-bit</parent>
+  <prematch>^[IWEF]\d{4} \d{2}:\d{2}:\d{2}\.\d+ \s*\d+ </prematch>
+  <regex>^([IWEF])(\d{4} \d{2}:\d{2}:\d{2}\.\d+) \s*(\d+) (\S+:\d+)] (.*)$</regex>
+  <order>klog_level, klog_time, klog_pid, klog_source, klog_msg</order>
+</decoder>
